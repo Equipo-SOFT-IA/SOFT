@@ -2,6 +2,15 @@ import streamlit as st
 import os
 import json
 import hashlib
+#---------para archivos----------------------------
+import io
+import fitz
+from docx import Document
+from PIL import Image
+import pytesseract
+pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+
+#--------------------------------------------------
 from dotenv import load_dotenv
 from openai import OpenAI
 from difflib import SequenceMatcher
@@ -33,7 +42,10 @@ def usuario_existe(u):
 def crear_usuario(u, p):
     if usuario_existe(u): return False
     with open(archivo_usuario(u), "w") as f:
-        json.dump({"contrasena": cifrar_contrasena(p), "mensajes": []}, f, indent=2)
+        json.dump({"contrasena": cifrar_contrasena(p),
+                    "mensajes": [],
+                    "archivos": [] #---> guarda contenido
+                }, f, indent=2)
     return True
 
 def verificar_usuario(u, p):
@@ -50,6 +62,60 @@ def guardar_mensajes(u, m):
     data["mensajes"] = m
     with open(archivo_usuario(u), "w") as f: json.dump(data, f, indent=2)
 
+#----- carga de archivos ------------------------------------------------------
+def cargar_archivos_usuario(u):
+    with open(archivo_usuario(u)) as f:
+        data = json.load(f)
+    return data.get("archivos", [])
+
+def guardar_archivo_usuario(u, nombre, contenido):
+    with open(archivo_usuario(u)) as f:
+        data = json.load(f)
+
+ # --- EVITAR DUPLICADOS ---
+    for nom_arch in data["archivos"]:
+        if nom_arch["nombre"] == nombre:
+            return  # No guardar dos veces
+        
+    data["archivos"].append({
+        "nombre": nombre,
+        "contenido": contenido
+    })
+
+    with open(archivo_usuario(u), "w") as f:
+        json.dump(data, f, indent=2)
+
+#---- procesamiento de archivos -----------------------------------------------
+def procesar_pdf(archivo):
+    """Extrae texto del PDF."""
+    doc = fitz.open(stream=archivo.read(), filetype="pdf")
+    texto = ""
+    for page in doc:
+        texto += page.get_text()
+    return texto
+
+def procesar_txt(archivo):
+    return archivo.read().decode("utf-8")
+
+def procesar_docx(archivo):
+    doc = Document(io.BytesIO(archivo.read()))
+    return "\n".join([p.text for p in doc.paragraphs])
+
+def procesar_imagen(archivo):
+    try:
+        img = Image.open(io.BytesIO(archivo.read()))
+        texto_extraido = pytesseract.image_to_string(img, lang="spa")
+
+        if not texto_extraido.strip():
+            texto_extraido = "(No se detectó texto legible en la imagen)"
+
+        return {"tipo": "texto", "texto": texto_extraido}
+
+    except Exception as e:
+        return {"tipo": "texto", "texto": f"(Error procesando la imagen: {e})"}
+
+
+#------------------------------------------------------------------------------
 def cargar_resumenes():
     resumenes = []
     for nombre in os.listdir(CARPETA_RESUMENES):
@@ -138,26 +204,71 @@ if st.session_state.logueado:
         for mensaje in st.session_state.mensajes:
             with st.chat_message(mensaje["role"]):
                 st.markdown(mensaje["content"])
+    
+    # ---------- SUBIDA DE ARCHIVOS E IMÁGENES ----------------------------------------------------
+    archivo = st.file_uploader(
+        "Sube un archivo (PDF, TXT, DOCX, PNG, JPG)",
+        type=["pdf", "txt", "docx", "png", "jpg", "jpeg"]
+    )
+
+    if archivo:
+        nombre = archivo.name.lower()
+
+        if nombre.endswith(".pdf"):
+            contenido = {"tipo": "texto", "texto": procesar_pdf(archivo)}
+
+        elif nombre.endswith(".txt"):
+            contenido = {"tipo": "texto", "texto": procesar_txt(archivo)}
+
+        elif nombre.endswith(".docx"):
+            contenido = {"tipo": "texto", "texto": procesar_docx(archivo)}
+
+        else:  # imágenes
+            contenido = procesar_imagen(archivo)
+
+        if st.session_state.usuario:
+            guardar_archivo_usuario(st.session_state.usuario, archivo.name, contenido)
+            st.success(f"Archivo '{archivo.name}' guardado en tu memoria.")
+#--------------------------------------------------------------------------------------------
 
     if mensaje_usuario := st.chat_input("¿En qué puedo ayudarte hoy?"):
         st.session_state.mensajes.append({"role": "user", "content": mensaje_usuario})
         with chat_area.chat_message("user"):
             st.markdown(mensaje_usuario)
 
+        #------------------------------------------------------------------------------------------
+        memoria_archivos = []
+        if st.session_state.usuario:
+            archivos_usuario = cargar_archivos_usuario(st.session_state.usuario)
+
+            for a in archivos_usuario:
+                if a["contenido"]["tipo"] == "texto":
+                    memoria_archivos.append(
+                        f"[Archivo: {a['nombre']}]\n{a['contenido']['texto'][:2000]}"
+                    )
+                else:
+                    memoria_archivos.append(
+                        f"[Imagen: {a['nombre']} (solo OCR de texto)]"
+                    )
+
+        memoria_str = "\n\n".join(memoria_archivos)
+        #------------------------------------------------------------------------------------------
         fragmentos = buscar_fragmentos(mensaje_usuario)
         contexto = "\n\n".join([f" [{f[1]}]\n{f[2][:2000]}" for f in fragmentos])
 
         with chat_area.chat_message("assistant"):
             st.write("💭 Analizando tus libros, un momento...")
-
+        #------------------------------------------>
         prompt = (
             "Responde de forma clara y académica en español. "
+            "Memoria del usuario (archivos previos):\n"
+            f"{memoria_str}\n\n"
             "Usa la siguiente información de libros de ingeniería de software como base, "
             "pero complementa con tu conocimiento general cuando sea necesario.\n\n"
             f"{contexto}\n\n"
             f"Pregunta del estudiante: {mensaje_usuario}"
         )
-
+        
 
         response = client.chat.completions.create(
             model="deepseek-chat",
