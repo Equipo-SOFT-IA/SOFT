@@ -2,15 +2,12 @@ import streamlit as st
 import os
 import json
 import hashlib
-#---------para archivos----------------------------
 import io
 import fitz
 from docx import Document
 from PIL import Image
 import pytesseract
 pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
-
-#--------------------------------------------------
 from dotenv import load_dotenv
 from openai import OpenAI
 from difflib import SequenceMatcher
@@ -62,7 +59,6 @@ def guardar_mensajes(u, m):
     data["mensajes"] = m
     with open(archivo_usuario(u), "w") as f: json.dump(data, f, indent=2)
 
-#----- carga de archivos ------------------------------------------------------
 def cargar_archivos_usuario(u):
     with open(archivo_usuario(u)) as f:
         data = json.load(f)
@@ -72,10 +68,10 @@ def guardar_archivo_usuario(u, nombre, contenido):
     with open(archivo_usuario(u)) as f:
         data = json.load(f)
 
- # --- EVITAR DUPLICADOS ---
+    #EVITAR DUPLICADOS
     for nom_arch in data["archivos"]:
         if nom_arch["nombre"] == nombre:
-            return  # No guardar dos veces
+            return 
         
     data["archivos"].append({
         "nombre": nombre,
@@ -85,17 +81,12 @@ def guardar_archivo_usuario(u, nombre, contenido):
     with open(archivo_usuario(u), "w") as f:
         json.dump(data, f, indent=2)
 
-#---- procesamiento de archivos -----------------------------------------------
 def procesar_pdf(archivo):
-    """Extrae texto del PDF."""
     doc = fitz.open(stream=archivo.read(), filetype="pdf")
     texto = ""
     for page in doc:
         texto += page.get_text()
     return texto
-
-def procesar_txt(archivo):
-    return archivo.read().decode("utf-8")
 
 def procesar_docx(archivo):
     doc = Document(io.BytesIO(archivo.read()))
@@ -114,8 +105,12 @@ def procesar_imagen(archivo):
     except Exception as e:
         return {"tipo": "texto", "texto": f"(Error procesando la imagen: {e})"}
 
+def guardar_en_bibliografia(nombre, texto):
+    ruta = os.path.join(CARPETA_RESUMENES, f"{nombre}.txt")
+    with open(ruta, "w", encoding="utf-8") as f:
+        f.write(texto)
+    st.session_state.resumenes = cargar_resumenes()
 
-#------------------------------------------------------------------------------
 def cargar_resumenes():
     resumenes = []
     for nombre in os.listdir(CARPETA_RESUMENES):
@@ -195,6 +190,26 @@ if st.session_state.logueado:
         st.session_state.mensajes = []
         st.rerun()
 
+    archivo_biblio = st.sidebar.file_uploader(
+        "Subir archivo",
+        type=["pdf", "docx"],
+        key="biblio_uploader"
+    )
+
+    if archivo_biblio:
+        nombre = archivo_biblio.name.split(".")[0]
+
+        if archivo_biblio.name.endswith(".pdf"):
+            texto = procesar_pdf(archivo_biblio)
+        elif archivo_biblio.name.endswith(".docx"):
+            texto = procesar_docx(archivo_biblio)
+        else:
+            st.sidebar.error("Formato no soportado.")
+            texto = ""
+
+        guardar_en_bibliografia(nombre, texto)
+        st.sidebar.success(f"'{nombre}' agregado a la bibliografía.")
+
     st.title("🤖 SOFT-IA — Agente de Ingenieria de Software")
 
     chat_area = st.container()
@@ -205,38 +220,29 @@ if st.session_state.logueado:
             with st.chat_message(mensaje["role"]):
                 st.markdown(mensaje["content"])
     
-    # ---------- SUBIDA DE ARCHIVOS E IMÁGENES ----------------------------------------------------
     archivo = st.file_uploader(
-        "Sube un archivo (PDF, TXT, DOCX, PNG, JPG)",
-        type=["pdf", "txt", "docx", "png", "jpg", "jpeg"]
-    )
+        "Sube un archivo",
+        type=["pdf", "docx", "png", "jpg", "jpeg"])
 
     if archivo:
         nombre = archivo.name.lower()
 
         if nombre.endswith(".pdf"):
             contenido = {"tipo": "texto", "texto": procesar_pdf(archivo)}
-
-        elif nombre.endswith(".txt"):
-            contenido = {"tipo": "texto", "texto": procesar_txt(archivo)}
-
         elif nombre.endswith(".docx"):
             contenido = {"tipo": "texto", "texto": procesar_docx(archivo)}
-
-        else:  # imágenes
+        else:
             contenido = procesar_imagen(archivo)
 
         if st.session_state.usuario:
             guardar_archivo_usuario(st.session_state.usuario, archivo.name, contenido)
             st.success(f"Archivo '{archivo.name}' guardado en tu memoria.")
-#--------------------------------------------------------------------------------------------
 
     if mensaje_usuario := st.chat_input("¿En qué puedo ayudarte hoy?"):
         st.session_state.mensajes.append({"role": "user", "content": mensaje_usuario})
         with chat_area.chat_message("user"):
             st.markdown(mensaje_usuario)
 
-        #------------------------------------------------------------------------------------------
         memoria_archivos = []
         if st.session_state.usuario:
             archivos_usuario = cargar_archivos_usuario(st.session_state.usuario)
@@ -252,13 +258,12 @@ if st.session_state.logueado:
                     )
 
         memoria_str = "\n\n".join(memoria_archivos)
-        #------------------------------------------------------------------------------------------
+
         fragmentos = buscar_fragmentos(mensaje_usuario)
         contexto = "\n\n".join([f" [{f[1]}]\n{f[2][:2000]}" for f in fragmentos])
 
         with chat_area.chat_message("assistant"):
             st.write("💭 Analizando tus libros, un momento...")
-        #------------------------------------------>
         prompt = (
             "Responde de forma clara y académica en español. "
             "Memoria del usuario (archivos previos):\n"
@@ -269,7 +274,6 @@ if st.session_state.logueado:
             f"Pregunta del estudiante: {mensaje_usuario}"
         )
         
-
         response = client.chat.completions.create(
             model="deepseek-chat",
             messages=[
