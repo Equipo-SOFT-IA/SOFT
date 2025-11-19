@@ -234,13 +234,15 @@ if st.session_state.logueado:
 
     chat_area = st.container()
 
+    #mostrar historial persistente
+
     with chat_area:
         for mensaje in st.session_state.mensajes:
             with st.chat_message(mensaje["role"]):
                 st.markdown(mensaje["content"])
     
     archivo = st.file_uploader(
-        "Sube un archivo a tu memoria personal",
+        "Sube un archivo",
         type=["pdf", "docx", "png", "jpg", "jpeg"])
 
     if archivo:
@@ -269,26 +271,36 @@ if st.session_state.logueado:
             archivos_usuario = cargar_archivos_usuario(st.session_state.usuario)
             for a in archivos_usuario:
                 if a["contenido"]["tipo"] == "texto":
-                    memoria_archivos.append(f"[Archivo usuario: {a['nombre']}]\n{a['contenido']['texto'][:2000]}")
+                    memoria_archivos.append(f"[Archivo usuario: {a['nombre']}]\n{a['contenido']['texto'][:30000]}")
                 else:
                     memoria_archivos.append(f"[Imagen usuario: {a['nombre']} (OCR)]")
         memoria_str = "\n\n".join(memoria_archivos)
 
         fragmentos = buscar_fragmentos(mensaje_usuario)
-        contexto_libros = "\n\n".join([f" [Fuente: {f[1]}]\n{f[2][:2000]}" for f in fragmentos])
+        contexto = "\n\n".join([f" [Fuente: {f[1]}]\n{f[2][:2000]}" for f in fragmentos])
 
         # --- MODIFICACIÓN (CONTEXTO): Prompt de Sistema reforzado para usar memoria ---
-        instrucciones_sistema = (
+        with chat_area.chat_message("assistant"): 
+
+            st.write("Analizando tus libros, un momento...")
+
+        prompt = (
+            "Responde de forma clara y academica en español."
+            "Memoria del usuario (archivos previos):\n"
+            f"{memoria_str}\n"
+            "Usa la siguiente información de libros de ingeniería de software como base, "
+            "pero complementa con tu conocimiento general cuando sea necesario.\n\n"
             "Eres SOFT-IA, un experto en ingeniería de software. "
             "IMPORTANTE: Tienes acceso total al historial de esta conversación. "
             "Revisa los mensajes anteriores para mantener el contexto. "
             "CONTEXTO ADICIONAL (Archivos y Libros):\n"
-            f"{memoria_str}\n"
-            f"{contexto_libros}\n"
+            
+            f"{contexto}\n"
+            f"Pregunta del estudiante: {mensaje_usuario}"
         )
 
         # --- MODIFICACIÓN (CONTEXTO): Construcción de la lista con historial completo ---
-        mensajes_api = [{"role": "system", "content": instrucciones_sistema}]
+        mensajes_api = [{"role": "system", "content": prompt}]
         mensajes_api.extend(st.session_state.mensajes)
 
         with chat_area.chat_message("assistant"):
