@@ -3,31 +3,25 @@ import os
 import json
 import hashlib
 import io
+import re   #Validación
 import fitz
 from docx import Document
 from PIL import Image
 import pytesseract
-# Ajusta la ruta si es necesario
 pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
 from dotenv import load_dotenv
-# --- MODIFICACIÓN (NOTIFICACIONES): Importamos error específico de conexión ---
 from openai import OpenAI, APIConnectionError
 from difflib import SequenceMatcher
 
-# CONFIGURACIÓN INICIAL
 st.set_page_config(page_title="SOFT-IA", layout="wide")
 
-# --- MODIFICACIÓN (NOTIFICACIONES): GESTOR DE NOTIFICACIONES PENDIENTES ---
-# Este bloque soluciona el problema de que los mensajes desaparecían al cambiar de pantalla.
 if "notificacion_pendiente" not in st.session_state:
     st.session_state.notificacion_pendiente = None
 
 if st.session_state.notificacion_pendiente:
     msg = st.session_state.notificacion_pendiente
     st.toast(msg["texto"], icon=msg["icono"])
-    # Limpiamos para que no salga cada vez que toques un botón
     st.session_state.notificacion_pendiente = None 
-# ---------------------------------------------------------------------------
 
 load_dotenv()
 client = OpenAI(
@@ -40,7 +34,6 @@ CARPETA_USUARIOS = "usuarios"
 os.makedirs(CARPETA_RESUMENES, exist_ok=True)
 os.makedirs(CARPETA_USUARIOS, exist_ok=True)
 
-# FUNCIONES DE USUARIOS
 def cifrar_contrasena(c):
     return hashlib.sha256(c.encode()).hexdigest()
 
@@ -53,25 +46,76 @@ def usuario_existe(u):
 def crear_usuario(u, p):
     if usuario_existe(u): return False
     with open(archivo_usuario(u), "w") as f:
-        json.dump({"contrasena": cifrar_contrasena(p),
-                   "mensajes": [],
-                   "archivos": [] 
-                }, f, indent=2)
+        json.dump({
+            "contrasena": cifrar_contrasena(p),
+            "mensajes": [],
+            "archivos": [] 
+        }, f, indent=2)
     return True
 
 def verificar_usuario(u, p):
     if not usuario_existe(u): return False
-    with open(archivo_usuario(u)) as f: data = json.load(f)
+    with open(archivo_usuario(u)) as f:
+        data = json.load(f)
     return data["contrasena"] == cifrar_contrasena(p)
 
+# --- #Validación: Funciones para validar formato de datos ---
+def validar_usuario(nombre):
+    if not nombre:
+        return "El nombre de usuario no puede estar vacío."
+    if not re.match(r"^[A-Za-z0-9_]+$", nombre):
+        return "El nombre de usuario solo puede contener letras, números y guiones bajos."
+    if len(nombre) < 3:
+        return "El nombre de usuario debe tener al menos 3 caracteres."
+    return None
+
+def validar_contrasena(passw):
+    if not passw:
+        return "La contraseña no puede estar vacía."
+    if len(passw) < 6:
+        return "La contraseña debe tener al menos 6 caracteres."
+    if not re.search(r"[A-Za-z]", passw) or not re.search(r"\d", passw):
+        return "La contraseña debe contener letras y números."
+    return None
+# --- Fin #Validación ---
+
 def cargar_mensajes(u):
-    with open(archivo_usuario(u)) as f: data = json.load(f)
+    with open(archivo_usuario(u)) as f:
+        data = json.load(f)
     return data.get("mensajes", [])
 
 def guardar_mensajes(u, m):
-    with open(archivo_usuario(u)) as f: data = json.load(f)
+    with open(archivo_usuario(u)) as f:
+        data = json.load(f)
     data["mensajes"] = m
-    with open(archivo_usuario(u), "w") as f: json.dump(data, f, indent=2)
+    with open(archivo_usuario(u), "w") as f:
+        json.dump(data, f, indent=2)
+
+# --- #Nuevo: Soporte para múltiples chats por usuario ---
+def obtener_chats_usuario(u):
+    with open(archivo_usuario(u)) as f:
+        data = json.load(f)
+    if "chats" not in data:
+        data["chats"] = {"Chat principal": data.get("mensajes", [])}
+        with open(archivo_usuario(u), "w") as f:
+            json.dump(data, f, indent=2)
+    return list(data["chats"].keys())
+
+def cargar_mensajes_chat(u, chat_nombre):
+    with open(archivo_usuario(u)) as f:
+        data = json.load(f)
+    chats = data.get("chats", {})
+    return chats.get(chat_nombre, [])
+
+def guardar_mensajes_chat(u, chat_nombre, mensajes):
+    with open(archivo_usuario(u)) as f:
+        data = json.load(f)
+    if "chats" not in data:
+        data["chats"] = {}
+    data["chats"][chat_nombre] = mensajes
+    with open(archivo_usuario(u), "w") as f:
+        json.dump(data, f, indent=2)
+# --- Fin bloque #Nuevo ---
 
 def cargar_archivos_usuario(u):
     with open(archivo_usuario(u)) as f:
@@ -81,16 +125,13 @@ def cargar_archivos_usuario(u):
 def guardar_archivo_usuario(u, nombre, contenido):
     with open(archivo_usuario(u)) as f:
         data = json.load(f)
-
     for nom_arch in data["archivos"]:
         if nom_arch["nombre"] == nombre:
             return 
-        
     data["archivos"].append({
         "nombre": nombre,
         "contenido": contenido
     })
-
     with open(archivo_usuario(u), "w") as f:
         json.dump(data, f, indent=2)
 
@@ -140,7 +181,6 @@ def buscar_fragmentos(texto_usuario, top_n=6):
     resultados.sort(reverse=True, key=lambda x: x[0])
     return resultados[:top_n]
 
-# ESTADO DE SESIÓN
 if "logueado" not in st.session_state:
     st.session_state.logueado = False
 if "usuario" not in st.session_state:
@@ -148,7 +188,11 @@ if "usuario" not in st.session_state:
 if "mensajes" not in st.session_state:
     st.session_state.mensajes = []
 
-# LOGIN / INVITADO
+if "chat_actual" not in st.session_state:
+    st.session_state.chat_actual = "Chat principal"
+if "chats" not in st.session_state:
+    st.session_state.chats = ["Chat principal"]
+
 if not st.session_state.logueado:
     st.title("SOFT-IA — Agente de Ingenieria de Software")
     modo = st.radio("Modo de uso:", ["Invitado", "Registrarse / Iniciar sesión"])
@@ -166,8 +210,13 @@ if not st.session_state.logueado:
             contrasena = st.text_input("Contraseña", type="password", key="reg_pass")
             repetir = st.text_input("Repetir contraseña", type="password", key="reg_pass2")
             if st.form_submit_button("Crear cuenta"):
-                if not nuevo or not contrasena:
-                    st.warning("Completa todos los campos.")
+                # --- #Validación registro ---
+                error_user = validar_usuario(nuevo)
+                error_pass = validar_contrasena(contrasena)
+                if error_user:
+                    st.error(error_user)
+                elif error_pass:
+                    st.error(error_pass)
                 elif contrasena != repetir:
                     st.error("Las contraseñas no coinciden.")
                 elif usuario_existe(nuevo):
@@ -176,34 +225,38 @@ if not st.session_state.logueado:
                     crear_usuario(nuevo, contrasena)
                     st.session_state.logueado = True
                     st.session_state.usuario = nuevo
-                    
-                    # --- MODIFICACIÓN (NOTIFICACIONES): Guardar mensaje antes del rerun ---
                     st.session_state.notificacion_pendiente = {
                         "texto": f"¡Bienvenido {nuevo}! Cuenta creada.",
                         "icono": "🎉"
                     }
                     st.rerun()
+                # --- Fin validación ---
 
         with st.form("login"):
             st.subheader("Iniciar sesión")
             nombre = st.text_input("Usuario", key="login_user")
             contrasena = st.text_input("Contraseña", type="password", key="login_pass")
             if st.form_submit_button("Entrar"):
-                if verificar_usuario(nombre, contrasena):
+                # --- #Validación login ---
+                if not nombre or not contrasena:
+                    st.warning("Completa todos los campos.")
+                elif not usuario_existe(nombre):
+                    st.error("El usuario no existe. Crea una cuenta primero.")
+                elif not verificar_usuario(nombre, contrasena):
+                    st.error("Usuario o contraseña incorrectos.")
+                else:
                     st.session_state.logueado = True
                     st.session_state.usuario = nombre
-                    st.session_state.mensajes = cargar_mensajes(nombre)
-                    
-                    # --- MODIFICACIÓN (NOTIFICACIONES): Guardar mensaje antes del rerun ---
+                    st.session_state.chats = obtener_chats_usuario(nombre)
+                    st.session_state.chat_actual = st.session_state.chats[0]
+                    st.session_state.mensajes = cargar_mensajes_chat(nombre, st.session_state.chat_actual)
                     st.session_state.notificacion_pendiente = {
                         "texto": f"Hola de nuevo, {nombre}.",
                         "icono": "👋"
                     }
                     st.rerun()
-                else:
-                    st.error("Usuario o contraseña incorrectos.")
+                # --- Fin validación ---
 
-# CHAT PRINCIPAL
 if st.session_state.logueado:
     st.sidebar.write(f"👤 Usuario: {st.session_state.usuario or 'Invitado'}")
     if st.sidebar.button("Cerrar sesión"):
@@ -211,6 +264,33 @@ if st.session_state.logueado:
         st.session_state.usuario = None
         st.session_state.mensajes = []
         st.rerun()
+
+    # --- #Nuevo: selector de chats ---
+    st.sidebar.markdown("### 💬 Tus Chats")
+    if st.session_state.usuario:
+        chat_seleccionado = st.sidebar.selectbox(
+            "Seleccionar chat:",
+            st.session_state.chats,
+            index=st.session_state.chats.index(st.session_state.chat_actual)
+        )
+
+        if chat_seleccionado != st.session_state.chat_actual:
+            st.session_state.chat_actual = chat_seleccionado
+            st.session_state.mensajes = cargar_mensajes_chat(st.session_state.usuario, st.session_state.chat_actual)
+            st.rerun()
+
+        nuevo_chat = st.sidebar.text_input("🆕 Nombre del nuevo chat")
+        if st.sidebar.button("Crear chat"):
+            if nuevo_chat and nuevo_chat not in st.session_state.chats:
+                st.session_state.chats.append(nuevo_chat)
+                guardar_mensajes_chat(st.session_state.usuario, nuevo_chat, [])
+                st.session_state.chat_actual = nuevo_chat
+                st.session_state.mensajes = []
+                st.toast(f"Nuevo chat '{nuevo_chat}' creado.", icon="🗨️")
+                st.rerun()
+    else:
+        st.sidebar.info("Modo invitado: tus chats no se guardarán.")
+    # --- Fin #Nuevo ---
 
     archivo_biblio = st.sidebar.file_uploader(
         "Subir archivo a Bibliografía",
@@ -234,8 +314,6 @@ if st.session_state.logueado:
 
     chat_area = st.container()
 
-    #mostrar historial persistente
-
     with chat_area:
         for mensaje in st.session_state.mensajes:
             with st.chat_message(mensaje["role"]):
@@ -256,11 +334,9 @@ if st.session_state.logueado:
 
         if st.session_state.usuario:
             guardar_archivo_usuario(st.session_state.usuario, archivo.name, contenido)
-            # --- MODIFICACIÓN (NOTIFICACIONES): Aviso simple de archivo guardado ---
             st.toast(f"Archivo '{archivo.name}' guardado en memoria.", icon="💾")
 
-    if mensaje_usuario := st.chat_input("¿En qué puedo ayudarte hoy?"):
-        # --- MODIFICACIÓN (CONTEXTO): Guardamos input usuario antes de llamar API ---
+    if mensaje_usuario := st.chat_input(f"[{st.session_state.chat_actual}] ¿En qué puedo ayudarte hoy?"):
         st.session_state.mensajes.append({"role": "user", "content": mensaje_usuario})
         
         with chat_area.chat_message("user"):
@@ -279,9 +355,7 @@ if st.session_state.logueado:
         fragmentos = buscar_fragmentos(mensaje_usuario)
         contexto = "\n\n".join([f" [Fuente: {f[1]}]\n{f[2][:2000]}" for f in fragmentos])
 
-        # --- MODIFICACIÓN (CONTEXTO): Prompt de Sistema reforzado para usar memoria ---
         with chat_area.chat_message("assistant"): 
-
             st.write("Analizando tus libros, un momento...")
 
         prompt = (
@@ -294,12 +368,10 @@ if st.session_state.logueado:
             "IMPORTANTE: Tienes acceso total al historial de esta conversación. "
             "Revisa los mensajes anteriores para mantener el contexto. "
             "CONTEXTO ADICIONAL (Archivos y Libros):\n"
-            
             f"{contexto}\n"
             f"Pregunta del estudiante: {mensaje_usuario}"
         )
 
-        # --- MODIFICACIÓN (CONTEXTO): Construcción de la lista con historial completo ---
         mensajes_api = [{"role": "system", "content": prompt}]
         mensajes_api.extend(st.session_state.mensajes)
 
@@ -308,17 +380,19 @@ if st.session_state.logueado:
                 with st.spinner("Pensando..."): 
                     response = client.chat.completions.create(
                         model="deepseek-chat",
-                        messages=mensajes_api, # Enviamos todo el historial
+                        messages=mensajes_api,
                         temperature=0.4
                     )
                 texto_respuesta = response.choices[0].message.content
                 
                 st.markdown(texto_respuesta)
                 st.session_state.mensajes.append({"role": "assistant", "content": texto_respuesta})
-                if st.session_state.usuario:
-                    guardar_mensajes(st.session_state.usuario, st.session_state.mensajes)
 
-            # --- MODIFICACIÓN (NOTIFICACIONES): Manejo de errores de conexión ---
+                # --- #Modificación: guardar mensajes según chat actual ---
+                if st.session_state.usuario:
+                    guardar_mensajes_chat(st.session_state.usuario, st.session_state.chat_actual, st.session_state.mensajes)
+                # --- Fin #Modificación ---
+
             except APIConnectionError:
                 st.error("⚠️ SIN CONEXIÓN A INTERNET: No se pudo conectar con el agente. Verifica tu red.")
                 
