@@ -1,0 +1,32 @@
+{
+  "contrasena": "8589667685c6d4c57285ab707c155bc85b3d59eff287566d89f5143ad7d7b4c0",
+  "chats": {
+    "Chat principal": [
+      {
+        "role": "user",
+        "content": "Hola"
+      },
+      {
+        "role": "assistant",
+        "content": "Hola, soy SOFT-IA, tu asistente especializado en Ingenier\u00eda de Software. \n\nEstoy aqu\u00ed para ayudarte con cualquier consulta relacionada con:\n- Desarrollo y gesti\u00f3n de requisitos de software\n- T\u00e9cnicas de elicitaci\u00f3n y especificaci\u00f3n\n- Modelado y dise\u00f1o de software\n- Validaci\u00f3n y verificaci\u00f3n de requisitos\n- Planificaci\u00f3n de proyectos de software\n- Casos de uso y especificaci\u00f3n funcional\n- Requisitos no funcionales y trazabilidad\n\n\u00bfEn qu\u00e9 aspecto de la ingenier\u00eda de software puedo asistirte hoy?"
+      },
+      {
+        "role": "user",
+        "content": "ve "
+      },
+      {
+        "role": "assistant",
+        "content": "Lo siento, solo estoy autorizado para responder temas de ingenier\u00eda de software."
+      }
+    ]
+  },
+  "archivos": [
+    {
+      "nombre": "Diagrama_ER_Ferreteria.png",
+      "contenido": {
+        "tipo": "texto",
+        "texto": "(Error procesando OCR: tesseract is not installed or it's not in your PATH. See README file for more information.)"
+      }
+    }
+  ]
+}
