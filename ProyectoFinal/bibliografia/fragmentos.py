@@ -3,19 +3,8 @@
 from difflib import SequenceMatcher
 
 def buscar_fragmentos(texto_usuario, resumenes, top_n=6):
-    """
-    Compara el texto del usuario contra todos los textos de la biblioteca.
-    
-    resumenes debe ser una lista de:
-    [
-        {"nombre": "archivo.txt", "texto": "..."},
-        ...
-    ]
-
-    Devuelve los top_n fragmentos con mayor similitud.
-    Cada elemento devuelto tiene el formato:
-        (score_similitud, nombre_archivo, texto)
-    """
+    #Compara el texto del usuario contra todos los textos de la biblioteca.
+    #Devuelve los top_n fragmentos con mayor similitud.
 
     resultados = []
 

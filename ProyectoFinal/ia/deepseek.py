@@ -4,9 +4,8 @@ import os
 from openai import OpenAI, APIConnectionError
 
 def crear_cliente():
-    """
-    Crea y devuelve el cliente de DeepSeek usando la API key del entorno.
-    """
+    
+    #Crea y devuelve el cliente de DeepSeek usando la API key del entorno.
     return OpenAI(
         api_key=os.getenv("DEEPSEEK_API_KEY"),
         base_url="https://api.deepseek.com/v1"
@@ -14,17 +13,8 @@ def crear_cliente():
 
 
 def enviar_a_deepseek(mensajes_api, modelo="deepseek-chat", temperatura=0.4):
-    """
-    Envía los mensajes a DeepSeek y devuelve el texto de la respuesta.
+    #Envía los mensajes a DeepSeek y devuelve el texto de la respuesta.
     
-    mensajes_api = [
-        {"role": "system", "content": "..."},
-        {"role": "user", "content": "..."},
-        {"role": "assistant", "content": "..."},
-        ...
-    ]
-    """
-
     try:
         client = crear_cliente()
 

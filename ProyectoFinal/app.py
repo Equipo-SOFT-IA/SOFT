@@ -2,7 +2,7 @@ import streamlit as st
 import os
 from dotenv import load_dotenv
 
-# 📦 IMPORTAR MÓDULOS MODULARES
+#  IMPORTAR MÓDULOS MODULARES
 from estilos import configurar_estilos
 
 # AUTH
@@ -34,7 +34,7 @@ from ia.prompt import construir_prompt
 from ia.deepseek import enviar_a_deepseek
 
 
-# 🔧 CONFIGURACIÓN INICIAL
+#  CONFIGURACIÓN INICIAL
 st.set_page_config(page_title="SOFT-IA", layout="wide")
 load_dotenv()
 configurar_estilos()
@@ -57,7 +57,7 @@ if "resumenes" not in st.session_state:
 
 
 # -----------------------------------------
-# 🧩 LOGIN Y REGISTRO
+#  LOGIN Y REGISTRO
 # -----------------------------------------
 if not st.session_state.logueado:
 
@@ -122,7 +122,7 @@ if not st.session_state.logueado:
 
 
 # -----------------------------------------
-# 🧠 INTERFAZ PRINCIPAL
+#  INTERFAZ PRINCIPAL
 # -----------------------------------------
 if st.session_state.logueado:
 
@@ -167,9 +167,9 @@ if st.session_state.logueado:
         st.sidebar.info("Modo invitado: tus chats no se guardarán.")
 
 
-    # Subir archivos a bibliografía
+    #---Subir archivos a bibliografía-------------------------------------------
     archivo_biblio = st.sidebar.file_uploader(
-        "📚 Subir archivo a Bibliografía",
+        "Subir archivo a Bibliografía",
         type=["pdf", "docx"]
     )
 
@@ -187,7 +187,7 @@ if st.session_state.logueado:
 
 
     # -----------------------------------------
-    # 🧠 CHAT PRINCIPAL
+    #  CHAT PRINCIPAL
     # -----------------------------------------
     st.title("🤖 SOFT-IA")
     st.markdown("<h3 style='text-align: center; color: #8B949E;'>Agente Especializado en Ingeniería de Software</h3>", unsafe_allow_html=True)
@@ -203,7 +203,7 @@ if st.session_state.logueado:
                 st.markdown(msg["content"])
 
     # Subir archivo al chat
-    archivo = st.file_uploader("📁 Subir archivo", type=["pdf", "docx", "png", "jpg", "jpeg"])
+    archivo = st.file_uploader("Subir archivo", type=["pdf", "docx", "png", "jpg", "jpeg"])
 
     if archivo:
         nombre = archivo.name.lower()
@@ -215,19 +215,21 @@ if st.session_state.logueado:
             contenido = {"tipo": "texto", "texto": procesar_docx(archivo)}
 
         else:
-            img_info = cargar_imagen(archivo)
-            if img_info["tipo"] == "imagen":
-                contenido = extraer_texto_ocr(img_info["imagen"])
+            if nombre.endswith((".png",".jpg",".jpeg")):
+                img_info = cargar_imagen(archivo)
+                if img_info["tipo"] == "imagen":
+                    contenido = extraer_texto_ocr(img_info["imagen"])
+                else:
+                    contenido = img_info
             else:
-                contenido = img_info
-
+                st.error("Tipo de archivo no permitido")
         if st.session_state.usuario:
             guardar_archivo_usuario(st.session_state.usuario, archivo.name, contenido)
             st.toast(f"Archivo '{archivo.name}' guardado.", icon="💾")
 
 
     # -----------------------------------------
-    # ✉️ INPUT DEL CHAT
+    #  INPUT DEL CHAT
     # -----------------------------------------
     if mensaje_usuario := st.chat_input(f"[{st.session_state.chat_actual}] ¿En qué puedo ayudarte?"):
 

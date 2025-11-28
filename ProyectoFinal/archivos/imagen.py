@@ -4,10 +4,9 @@ from PIL import Image
 import io
 
 def cargar_imagen(archivo_stream):
-    """
-    Carga una imagen desde un archivo subido en Streamlit.
-    Devuelve el objeto PIL.Image o un diccionario de error.
-    """
+    
+    #Carga una imagen desde un archivo subido en Streamlit.
+    #Devuelve el objeto PIL.Image
     try:
         contenido = archivo_stream.read()
 

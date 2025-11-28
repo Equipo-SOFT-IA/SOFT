@@ -8,14 +8,14 @@ CARPETA_USUARIOS = "usuarios"
 os.makedirs(CARPETA_USUARIOS, exist_ok=True)
 
 # ------------------------------------------------------------
-# 🔐 SEGURIDAD: Cifrado de contraseñas (SHA-256)
+# Cifrado de contraseñas
 # ------------------------------------------------------------
 def cifrar_contrasena(c):
     return hashlib.sha256(c.encode()).hexdigest()
 
 
 # ------------------------------------------------------------
-# 📁 Rutas y Helpers
+#  Rutas y Helpers
 # ------------------------------------------------------------
 def archivo_usuario(nombre_usuario):
     return os.path.join(CARPETA_USUARIOS, f"{nombre_usuario}.json")
@@ -26,7 +26,7 @@ def usuario_existe(nombre_usuario):
 
 
 # ------------------------------------------------------------
-# 🧪 Validación de datos
+#  Validación de datos
 # ------------------------------------------------------------
 def validar_usuario(nombre):
     if not nombre:
@@ -55,7 +55,7 @@ def validar_contrasena(passw):
 
 
 # ------------------------------------------------------------
-# 👤 Crear y verificar usuario
+#  Crear y verificar usuario
 # ------------------------------------------------------------
 def crear_usuario(nombre, contrasena):
     if usuario_existe(nombre):
@@ -84,7 +84,7 @@ def verificar_usuario(nombre, contrasena):
 
 
 # ------------------------------------------------------------
-# 💬 Manejo de chats
+# Manejo de chats
 # ------------------------------------------------------------
 def obtener_chats_usuario(nombre):
     with open(archivo_usuario(nombre), "r", encoding="utf-8") as f:
@@ -112,7 +112,7 @@ def guardar_mensajes_chat(nombre, chat, mensajes):
 
 
 # ------------------------------------------------------------
-# 📂 Manejo de archivos subidos por el usuario
+# Manejo de archivos subidos por el usuario
 # ------------------------------------------------------------
 def cargar_archivos_usuario(nombre):
     with open(archivo_usuario(nombre), "r", encoding="utf-8") as f:

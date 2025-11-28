@@ -4,14 +4,9 @@ import pytesseract
 from PIL import Image
 pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
 
-# Ruta de Tesseract opcional (puedes ajustarla aquí si quieres dejarlo global)
-# pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
-
 def extraer_texto_ocr(imagen_pil):
-    """
-    Recibe una imagen PIL y extrae texto usando OCR (español).
-    Devuelve un diccionario con el tipo y el texto detectado.
-    """
+    
+    #Recibe una imagen PIL y extrae texto usando OCR (español).
     try:
         if not isinstance(imagen_pil, Image.Image):
             return {

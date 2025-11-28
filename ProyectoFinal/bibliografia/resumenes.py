@@ -7,13 +7,11 @@ os.makedirs(CARPETA_RESUMENES, exist_ok=True)
 
 
 # ------------------------------------------------------------
-# 📥 Guardar texto en la biblioteca
+#  Guardar texto en la biblioteca
 # ------------------------------------------------------------
 def guardar_en_bibliografia(nombre, texto):
-    """
-    Guarda un texto asociado a un nombre dentro de la carpeta libros_resumen.
-    El archivo se guarda como .txt
-    """
+    #Guarda un texto asociado a un nombre dentro de la carpeta libros_resumen.
+    #El archivo se guarda como .txt
     ruta = os.path.join(CARPETA_RESUMENES, f"{nombre}.txt")
 
     try:
@@ -26,18 +24,11 @@ def guardar_en_bibliografia(nombre, texto):
 
 
 # ------------------------------------------------------------
-# 📚 Cargar todos los textos de la biblioteca
+#  Cargar todos los textos de la biblioteca
 # ------------------------------------------------------------
 def cargar_resumenes():
-    """
-    Lee todos los archivos .txt dentro de libros_resumen
-    y devuelve una lista de diccionarios:
-    [
-        {"nombre": "archivo1.txt", "texto": "..."},
-        {"nombre": "archivo2.txt", "texto": "..."},
-        ...
-    ]
-    """
+    #Lee todos los archivos .txt dentro de libros_resumen
+
     lista = []
 
     for archivo in os.listdir(CARPETA_RESUMENES):
@@ -61,13 +52,12 @@ def cargar_resumenes():
 
 
 # ------------------------------------------------------------
-# 🔍 Obtener un texto específico por nombre
+#  Obtener un texto específico por nombre
 # ------------------------------------------------------------
 def obtener_resumen(nombre):
-    """
-    Devuelve el contenido de un archivo específico nombre.txt
-    o None si no existe.
-    """
+    
+    #Devuelve el contenido de un archivo específico nombre.txt
+    #o None si no existe.
     ruta = os.path.join(CARPETA_RESUMENES, f"{nombre}.txt")
 
     if not os.path.exists(ruta):

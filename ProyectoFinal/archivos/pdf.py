@@ -3,10 +3,9 @@
 import fitz  # PyMuPDF
 
 def procesar_pdf(archivo_stream):
-    """
-    Procesa un archivo PDF subido desde Streamlit.
-    Devuelve el texto extraído de todas las páginas.
-    """
+
+    #Procesa un archivo PDF subido desde Streamlit.
+    #Devuelve el texto extraído de todas las páginas.
     try:
         # Abrir el PDF desde el stream cargado
         doc = fitz.open(stream=archivo_stream.read(), filetype="pdf")

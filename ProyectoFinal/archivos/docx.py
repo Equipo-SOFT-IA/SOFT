@@ -4,10 +4,9 @@ from docx import Document
 import io
 
 def procesar_docx(archivo_stream):
-    """
-    Procesa un archivo .docx subido desde Streamlit.
-    Devuelve todo el texto concatenado de sus párrafos.
-    """
+
+    #Procesa un archivo .docx subido desde Streamlit.
+    #Devuelve todo el texto concatenado de sus párrafos.
     try:
         # Convertir el archivo a un buffer de memoria
         buffer = io.BytesIO(archivo_stream.read())

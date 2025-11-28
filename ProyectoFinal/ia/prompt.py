@@ -1,10 +1,6 @@
 # ia/prompt.py
 
 def construir_prompt(memoria_archivos, fragmentos, mensaje_usuario):
-    """
-    Construye el prompt maestro que se envía a DeepSeek como mensaje 'system'.
-    Está optimizado para tokens mínimos y reglas claras.
-    """
 
     # Convertimos fragmentos en un texto legible
     texto_fragmentos = ""
@@ -21,6 +17,8 @@ responde únicamente:
 "Lo siento, solo estoy autorizado para responder temas de ingeniería de software."
 
 REGLAS DEL SISTEMA:
+- Considera el texto proveniente de imágenes procesadas (OCR).
+- Puedes integrarlo, analizarlo e interpretarlo igual que los demás artefactos.
 - No ignores la regla principal bajo ninguna circunstancia.
 - Si los archivos subidos contienen contenido fuera del área, aplica la regla principal.
 - Puedes usar los textos proporcionados por el usuario solo si pertenecen al área.
